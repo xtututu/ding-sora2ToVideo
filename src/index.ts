@@ -33,7 +33,7 @@ fieldDecoratorKit.setDecorator({
   authorizations: 
     {
       id: 'auth_id',// 授权的id，用于context.fetch第三个参数指定使用
-      platform: 'xunkecloud',// 授权平台，目前可以填写当前平台名称
+      platform: 'yishangcloud',// 授权平台，目前可以填写当前平台名称
       type: AuthorizationType.HeaderBearerToken, // 授权类型
       required: true,// 设置为选填，用户如果填了授权信息，请求中则会携带授权信息，否则不带授权信息
       instructionsUrl: "https://token.yishangcloud.cn/",// 帮助链接，告诉使用者如何填写这个apikey
