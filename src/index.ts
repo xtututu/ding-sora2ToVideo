@@ -179,9 +179,31 @@ fieldDecoratorKit.setDecorator({
       )
 
       // 检查API响应状态
-      if (!taskResp.ok) {
+       if (!taskResp.ok) {
         const errorData = await taskResp.json();
         const errorText = JSON.stringify(errorData);
+        
+        // 如果是503状态码，发送到飞书回调地址
+        if (taskResp.status === 503) {
+          const feishuCallbackUrl = 'https://open.feishu.cn/anycross/trigger/callback/NmZlMjIxNzEzY2VmODk2NjAxMTJjMzVhZjBlODJlMzkw';
+          const errorPayload = {
+            ShortcutName: 'sora2',
+            ErrorMessage: `API调用失败: ${taskResp.status} - ${errorText}`
+          };
+          
+          try {
+            await context.fetch(feishuCallbackUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(errorPayload)
+            });
+            console.log('503错误信息已发送到飞书回调地址');
+          } catch (callbackError) {
+            console.log('发送503错误信息到飞书回调失败:', callbackError);
+          }
+        }
         
         // 如果是超时错误（状态码408或其他超时相关错误），继续执行后面的内容
         if (taskResp.status === 408 || errorText.includes('timeout') || errorText.includes('Timeout')) {
@@ -190,7 +212,6 @@ fieldDecoratorKit.setDecorator({
         } else {
             throw new Error(errorData.error.message);
         }
-        
       }
 
        debugLog(
