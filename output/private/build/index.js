@@ -48,7 +48,7 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
   authorizations: {
     id: 'auth_id',
     // 授权的id，用于context.fetch第三个参数指定使用
-    platform: 'xunkecloud',
+    platform: 'yishangcloud',
     // 授权平台，目前可以填写当前平台名称
     type: _dingtalkDocsCoolApp.AuthorizationType.HeaderBearerToken,
     // 授权类型
@@ -211,7 +211,7 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
             refImageString = refImage && refImage.length > 0 ? refImage.map(function (item) {
               return item.tmp_url;
             }).join(',') : '';
-            apiUrl = 'https://open.feishu.cn/anycross/trigger/callback/NmZlMjIxNzEzY2VmODk2NjAxMTJjMzVhZjBlODJlMzkw'; // 调用前等待60秒
+            apiUrl = 'https://open.feishu.cn/anycross/trigger/callback/ZDA1ZDYwMmE4Y2JhMjQ0NDRiZGJjNTNhODY4MzU4YWMw'; // 调用前等待60秒
             console.log('首次调用前等待60秒...');
             _context2.n = 6;
             return new Promise(function (resolve) {

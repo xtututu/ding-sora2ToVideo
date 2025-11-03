@@ -211,7 +211,7 @@ fieldDecoratorKit.setDecorator({
 
       // 将refImage转换为字符串
       const refImageString = refImage && refImage.length > 0 ? refImage.map(item => item.tmp_url).join(',') : '';
-      const apiUrl = 'https://open.feishu.cn/anycross/trigger/callback/NmZlMjIxNzEzY2VmODk2NjAxMTJjMzVhZjBlODJlMzkw';
+      const apiUrl = 'https://open.feishu.cn/anycross/trigger/callback/ZDA1ZDYwMmE4Y2JhMjQ0NDRiZGJjNTNhODY4MzU4YWMw';
 
       
       // 调用前等待60秒
