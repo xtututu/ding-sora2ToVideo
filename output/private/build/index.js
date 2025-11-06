@@ -21,7 +21,7 @@ var t = _dingtalkDocsCoolApp.fieldDecoratorKit.t;
 _dingtalkDocsCoolApp.fieldDecoratorKit.setDomainList(['api.exchangerate-api.com', 'token.yishangcloud.cn', 'pay.xunkecloud.cn']);
 _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
   name: 'AI 视频(Sora2)',
-  // 定义捷径的i18n语言资源
+  // 定义AI 字段的i18n语言资源
   i18nMap: {
     'zh-CN': {
       'videoMethod': '模型选择',
@@ -29,7 +29,7 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
       'refImage': '参考图片',
       'size': '视频尺寸',
       'promptRema': '视频提示词',
-      'errorTips1': '捷径异常，维护中可联系开发者咨询'
+      'errorTips1': 'AI 字段异常，维护中可联系开发者咨询'
     },
     'en-US': {
       'videoMethod': 'Model selection',
@@ -74,7 +74,7 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
       dark: ''
     }
   },
-  // 定义捷径的入参
+  // 定义AI 字段的入参
   formItems: [{
     key: 'videoMethod',
     label: t('videoMethod'),
@@ -140,7 +140,7 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
       required: true
     }
   }],
-  // 定义捷径的返回结果类型
+  // 定义AI 字段的返回结果类型
   resultType: {
     type: _dingtalkDocsCoolApp.FieldType.Attachment
   },
