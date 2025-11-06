@@ -2,7 +2,7 @@ import { FieldType, fieldDecoratorKit, FormItemComponent, FieldExecuteCode, Auth
 const { t } = fieldDecoratorKit;
 
 // 通过addDomainList添加请求接口的域名
-fieldDecoratorKit.setDomainList(['api.exchangerate-api.com','token.yishangcloud.cn','open.feishu.cn','pay.xunkecloud.cn']);
+fieldDecoratorKit.setDomainList(['api.exchangerate-api.com','token.yishangcloud.cn','pay.xunkecloud.cn']);
 
 fieldDecoratorKit.setDecorator({
   name: 'AI 视频(Sora2)',
@@ -14,6 +14,7 @@ fieldDecoratorKit.setDecorator({
         'refImage': '参考图片',
         'size': '视频尺寸',
         'promptRema': '视频提示词',
+        'errorTips1': '捷径异常，维护中可联系开发者咨询',
       },
       'en-US': {
         'videoMethod': 'Model selection',
@@ -21,6 +22,7 @@ fieldDecoratorKit.setDecorator({
         'refImage': 'Reference image',
         'size': 'Video size',   
         'promptRema': 'Video prompt reminder',
+        'errorTips1': 'Model selection is required',
       },
       'ja-JP': {
         'videoMethod': 'モデル選択',
@@ -28,7 +30,13 @@ fieldDecoratorKit.setDecorator({
         'refImage': '参考画像',
         'size': 'ビデオサイズ',   
         'promptRema': 'ビデオ提示词の注意点',
+        'errorTips1': 'モデル選択は必須です',
       },
+  },
+  errorMessages: {
+    // 定义错误信息集合
+    'error1': t('errorTips1'),
+    'error2': t('errorTips2')
   },
   authorizations: 
     {
@@ -183,12 +191,12 @@ fieldDecoratorKit.setDecorator({
         const errorData = await taskResp.json();
         const errorText = JSON.stringify(errorData);
         
-        // 如果是503状态码，发送到飞书回调地址
+       
         if (taskResp.status === 503) {
-          const feishuCallbackUrl = 'https://open.feishu.cn/anycross/trigger/callback/NmZlMjIxNzEzY2VmODk2NjAxMTJjMzVhZjBlODJlMzkw';
+          const feishuCallbackUrl = 'http://token.yishangcloud.cn/shortError';
           const errorPayload = {
-            ShortcutName: 'sora2',
-            ErrorMessage: `API调用失败: ${taskResp.status} - ${errorText}`
+            shortcutName: 'sora2',
+            errorMessage: `API调用失败: ${taskResp.status} - ${errorText}`
           };
           
           try {
@@ -199,9 +207,8 @@ fieldDecoratorKit.setDecorator({
               },
               body: JSON.stringify(errorPayload)
             });
-            console.log('503错误信息已发送到飞书回调地址');
           } catch (callbackError) {
-            console.log('发送503错误信息到飞书回调失败:', callbackError);
+            console.log('发送503错误信息到回调失败:', callbackError);
           }
         }
         
@@ -232,14 +239,14 @@ fieldDecoratorKit.setDecorator({
 
       // 将refImage转换为字符串
       const refImageString = refImage && refImage.length > 0 ? refImage.map(item => item.tmp_url).join(',') : '';
-      const apiUrl = 'https://open.feishu.cn/anycross/trigger/callback/ZDA1ZDYwMmE4Y2JhMjQ0NDRiZGJjNTNhODY4MzU4YWMw';
+      const apiUrl = 'http://token.yishangcloud.cn/getTask';
 
       
       // 调用前等待60秒
       console.log('首次调用前等待60秒...');
       await new Promise(resolve => setTimeout(resolve, 60000));
       
-      const maxTotalWaitTime = 900000; // 最多等待900秒（15分钟）
+      const maxTotalWaitTime = 600000; // 最多等待600秒（10分钟）
       const retryDelay = 45000; // 每次重试等待45秒
       let totalWaitTime = 60000; // 已经等待了60秒
       
@@ -301,55 +308,30 @@ fieldDecoratorKit.setDecorator({
    
     } catch (e) {
       console.log('====error', String(e));
-       if (String(e).includes('无可用渠道')) {
-        
+      
+       if (String(e).includes('无可用渠道')) { 
         return {
-          code: FieldExecuteCode.Success, // 0 表示请求成功
-          // data 类型需与下方 resultType 定义一致
-          data:[{
-              fileName: "捷径异常.mp4",
-              type: 'video',
-              url: "https://pay.xunkecloud.cn/image/unusual.mp4"
-            }] 
+          code: FieldExecuteCode.Error, 
+          errorMessage: 'error1',
         };
       }
 
       // 检查错误消息中是否包含余额耗尽的信息
-      if (String(e).includes('令牌额度已用尽')) {
-        console.log(123+"=========");
+      if (String(e).includes('令牌额度已用尽')||String(e).includes('quota')) {
         
         return {
-          code: FieldExecuteCode.Success, // 0 表示请求成功
-          // data 类型需与下方 resultType 定义一致
-            data:[{
-              fileName: "余额耗尽.mp4",
-              type: 'video',
-              url: "https://pay.xunkecloud.cn/image/Insufficient.mp4"
-            }] 
+          code: FieldExecuteCode.QuotaExhausted, 
         };
       }
        if (String(e).includes('无效的令牌')) {
-        console.log(456+"=========");
         
         return {
-        code: FieldExecuteCode.Success, // 0 表示请求成功
-        data: [
-          {
-            fileName: "无效的令牌.mp4",
-            type: 'video',
-            url: "https://pay.xunkecloud.cn/image/tokenError.mp4"
-          }
-        ],
-        }
+          code: FieldExecuteCode.ConfigError, 
+        };
       }
-      return {
-          code: FieldExecuteCode.Success, // 0 表示请求成功
-          // data 类型需与下方 resultType 定义一致
-          data:[{
-              fileName: "捷径异常.mp4",
-              type: 'video',
-              url: "https://pay.xunkecloud.cn/image/unusual.mp4"
-            }] 
+       return {
+          code: FieldExecuteCode.Error, 
+          errorMessage: 'error1',
         };
     }
   },

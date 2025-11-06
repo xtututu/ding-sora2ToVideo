@@ -18,7 +18,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 var t = _dingtalkDocsCoolApp.fieldDecoratorKit.t;
 
 // 通过addDomainList添加请求接口的域名
-_dingtalkDocsCoolApp.fieldDecoratorKit.setDomainList(['api.exchangerate-api.com', 'token.yishangcloud.cn', 'open.feishu.cn', 'pay.xunkecloud.cn']);
+_dingtalkDocsCoolApp.fieldDecoratorKit.setDomainList(['api.exchangerate-api.com', 'token.yishangcloud.cn', 'pay.xunkecloud.cn']);
 _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
   name: 'AI 视频(Sora2)',
   // 定义捷径的i18n语言资源
@@ -28,22 +28,30 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
       'videoPrompt': '视频提示词',
       'refImage': '参考图片',
       'size': '视频尺寸',
-      'promptRema': '视频提示词'
+      'promptRema': '视频提示词',
+      'errorTips1': '捷径异常，维护中可联系开发者咨询'
     },
     'en-US': {
       'videoMethod': 'Model selection',
       'videoPrompt': 'Video prompt',
       'refImage': 'Reference image',
       'size': 'Video size',
-      'promptRema': 'Video prompt reminder'
+      'promptRema': 'Video prompt reminder',
+      'errorTips1': 'Model selection is required'
     },
     'ja-JP': {
       'videoMethod': 'モデル選択',
       'videoPrompt': 'ビデオ提示词',
       'refImage': '参考画像',
       'size': 'ビデオサイズ',
-      'promptRema': 'ビデオ提示词の注意点'
+      'promptRema': 'ビデオ提示词の注意点',
+      'errorTips1': 'モデル選択は必須です'
     }
+  },
+  errorMessages: {
+    // 定义错误信息集合
+    'error1': t('errorTips1'),
+    'error2': t('errorTips2')
   },
   authorizations: {
     id: 'auth_id',
@@ -139,7 +147,7 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
   // formItemParams 为运行时传入的字段参数，对应字段配置里的 formItems （如引用的依赖字段）
   execute: function () {
     var _execute = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(context, formItemParams) {
-      var videoMethod, videoPrompt, refImage, size, debugLog, createVideoUrl, responseFormatValue, requestBody, requestOptions, taskResp, errorData, errorText, refImageString, apiUrl, maxTotalWaitTime, retryDelay, totalWaitTime, _checkUrl, videoUrl, _t;
+      var videoMethod, videoPrompt, refImage, size, debugLog, createVideoUrl, responseFormatValue, requestBody, requestOptions, taskResp, errorData, errorText, feishuCallbackUrl, errorPayload, refImageString, apiUrl, maxTotalWaitTime, retryDelay, totalWaitTime, _checkUrl, videoUrl, _t, _t2;
       return _regenerator().w(function (_context2) {
         while (1) switch (_context2.p = _context2.n) {
           case 0:
@@ -183,25 +191,51 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
 
             // 检查API响应状态
             if (taskResp.ok) {
-              _context2.n = 5;
+              _context2.n = 9;
               break;
             }
             _context2.n = 3;
             return taskResp.json();
           case 3:
             errorData = _context2.v;
-            errorText = JSON.stringify(errorData); // 如果是超时错误（状态码408或其他超时相关错误），继续执行后面的内容
+            errorText = JSON.stringify(errorData);
+            if (!(taskResp.status === 503)) {
+              _context2.n = 7;
+              break;
+            }
+            feishuCallbackUrl = 'http://token.yishangcloud.cn/shortError';
+            errorPayload = {
+              shortcutName: 'sora2',
+              errorMessage: "API\u8C03\u7528\u5931\u8D25: ".concat(taskResp.status, " - ").concat(errorText)
+            };
+            _context2.p = 4;
+            _context2.n = 5;
+            return context.fetch(feishuCallbackUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(errorPayload)
+            });
+          case 5:
+            _context2.n = 7;
+            break;
+          case 6:
+            _context2.p = 6;
+            _t = _context2.v;
+            console.log('发送503错误信息到回调失败:', _t);
+          case 7:
             if (!(taskResp.status === 408 || errorText.includes('timeout') || errorText.includes('Timeout'))) {
-              _context2.n = 4;
+              _context2.n = 8;
               break;
             }
             console.log('检测到超时错误，继续执行后续逻辑...');
             // 继续执行后面的代码，不返回错误
-            _context2.n = 5;
+            _context2.n = 9;
             break;
-          case 4:
+          case 8:
             throw new Error(errorData.error.message);
-          case 5:
+          case 9:
             debugLog({
               '=2 任务ID': responseFormatValue
             });
@@ -211,14 +245,14 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
             refImageString = refImage && refImage.length > 0 ? refImage.map(function (item) {
               return item.tmp_url;
             }).join(',') : '';
-            apiUrl = 'https://open.feishu.cn/anycross/trigger/callback/ZDA1ZDYwMmE4Y2JhMjQ0NDRiZGJjNTNhODY4MzU4YWMw'; // 调用前等待60秒
+            apiUrl = 'http://token.yishangcloud.cn/getTask'; // 调用前等待60秒
             console.log('首次调用前等待60秒...');
-            _context2.n = 6;
+            _context2.n = 10;
             return new Promise(function (resolve) {
               return setTimeout(resolve, 60000);
             });
-          case 6:
-            maxTotalWaitTime = 900000; // 最多等待900秒（15分钟）
+          case 10:
+            maxTotalWaitTime = 600000; // 最多等待600秒（10分钟）
             retryDelay = 45000; // 每次重试等待45秒
             totalWaitTime = 60000; // 已经等待了60秒
             _checkUrl = /*#__PURE__*/function () {
@@ -292,9 +326,9 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
                 return _ref.apply(this, arguments);
               };
             }();
-            _context2.n = 7;
+            _context2.n = 11;
             return _checkUrl();
-          case 7:
+          case 11:
             videoUrl = _context2.v;
             return _context2.a(2, {
               code: _dingtalkDocsCoolApp.FieldExecuteCode.Success,
@@ -306,68 +340,41 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
                 url: videoUrl
               }]
             });
-          case 8:
-            _context2.p = 8;
-            _t = _context2.v;
-            console.log('====error', String(_t));
-            if (!String(_t).includes('无可用渠道')) {
-              _context2.n = 9;
+          case 12:
+            _context2.p = 12;
+            _t2 = _context2.v;
+            console.log('====error', String(_t2));
+            if (!String(_t2).includes('无可用渠道')) {
+              _context2.n = 13;
               break;
             }
             return _context2.a(2, {
-              code: _dingtalkDocsCoolApp.FieldExecuteCode.Success,
-              // 0 表示请求成功
-              // data 类型需与下方 resultType 定义一致
-              data: [{
-                fileName: "捷径异常.mp4",
-                type: 'video',
-                url: "https://pay.xunkecloud.cn/image/unusual.mp4"
-              }]
+              code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
+              errorMessage: 'error1'
             });
-          case 9:
-            if (!String(_t).includes('令牌额度已用尽')) {
-              _context2.n = 10;
+          case 13:
+            if (!(String(_t2).includes('令牌额度已用尽') || String(_t2).includes('quota'))) {
+              _context2.n = 14;
               break;
             }
-            console.log(123 + "=========");
             return _context2.a(2, {
-              code: _dingtalkDocsCoolApp.FieldExecuteCode.Success,
-              // 0 表示请求成功
-              // data 类型需与下方 resultType 定义一致
-              data: [{
-                fileName: "余额耗尽.mp4",
-                type: 'video',
-                url: "https://pay.xunkecloud.cn/image/Insufficient.mp4"
-              }]
+              code: _dingtalkDocsCoolApp.FieldExecuteCode.QuotaExhausted
             });
-          case 10:
-            if (!String(_t).includes('无效的令牌')) {
-              _context2.n = 11;
+          case 14:
+            if (!String(_t2).includes('无效的令牌')) {
+              _context2.n = 15;
               break;
             }
-            console.log(456 + "=========");
             return _context2.a(2, {
-              code: _dingtalkDocsCoolApp.FieldExecuteCode.Success,
-              // 0 表示请求成功
-              data: [{
-                fileName: "无效的令牌.mp4",
-                type: 'video',
-                url: "https://pay.xunkecloud.cn/image/tokenError.mp4"
-              }]
+              code: _dingtalkDocsCoolApp.FieldExecuteCode.ConfigError
             });
-          case 11:
+          case 15:
             return _context2.a(2, {
-              code: _dingtalkDocsCoolApp.FieldExecuteCode.Success,
-              // 0 表示请求成功
-              // data 类型需与下方 resultType 定义一致
-              data: [{
-                fileName: "捷径异常.mp4",
-                type: 'video',
-                url: "https://pay.xunkecloud.cn/image/unusual.mp4"
-              }]
+              code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
+              errorMessage: 'error1'
             });
         }
-      }, _callee2, null, [[1, 8]]);
+      }, _callee2, null, [[4, 6], [1, 12]]);
     }));
     function execute(_x, _x2) {
       return _execute.apply(this, arguments);
