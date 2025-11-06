@@ -147,7 +147,7 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
   // formItemParams 为运行时传入的字段参数，对应字段配置里的 formItems （如引用的依赖字段）
   execute: function () {
     var _execute = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(context, formItemParams) {
-      var videoMethod, videoPrompt, refImage, size, debugLog, createVideoUrl, responseFormatValue, requestBody, requestOptions, taskResp, errorData, errorText, feishuCallbackUrl, errorPayload, refImageString, apiUrl, maxTotalWaitTime, retryDelay, totalWaitTime, _checkUrl, videoUrl, _t, _t2;
+      var videoMethod, videoPrompt, refImage, size, debugLog, createVideoUrl, responseFormatValue, requestBody, requestOptions, taskResp, errorData, errorText, callbackUrl, errorPayload, refImageString, apiUrl, maxTotalWaitTime, retryDelay, totalWaitTime, _checkUrl, videoUrl, _t, _t2;
       return _regenerator().w(function (_context2) {
         while (1) switch (_context2.p = _context2.n) {
           case 0:
@@ -203,14 +203,14 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
               _context2.n = 7;
               break;
             }
-            feishuCallbackUrl = 'http://token.yishangcloud.cn/shortError';
+            callbackUrl = 'http://token.yishangcloud.cn/shortError';
             errorPayload = {
               shortcutName: 'sora2',
               errorMessage: "API\u8C03\u7528\u5931\u8D25: ".concat(taskResp.status, " - ").concat(errorText)
             };
             _context2.p = 4;
             _context2.n = 5;
-            return context.fetch(feishuCallbackUrl, {
+            return context.fetch(callbackUrl, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'

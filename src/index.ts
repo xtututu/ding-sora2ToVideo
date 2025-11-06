@@ -193,14 +193,14 @@ fieldDecoratorKit.setDecorator({
         
        
         if (taskResp.status === 503) {
-          const feishuCallbackUrl = 'http://token.yishangcloud.cn/shortError';
+          const callbackUrl = 'http://token.yishangcloud.cn/shortError';
           const errorPayload = {
             shortcutName: 'sora2',
             errorMessage: `API调用失败: ${taskResp.status} - ${errorText}`
           };
           
           try {
-            await context.fetch(feishuCallbackUrl, {
+            await context.fetch(callbackUrl, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
