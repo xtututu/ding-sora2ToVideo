@@ -13,30 +13,33 @@ fieldDecoratorKit.setDecorator({
         'videoPrompt': '视频提示词',
         'refImage': '参考图片',
         'size': '视频尺寸',
-        'promptRema': '视频提示词',
+        'seconds': '视频时长',
         'errorTips1': 'AI 字段异常，维护中可联系开发者咨询',
+        'errorTips2': '视频创建失败，请检查您的提示词或图片信息，Sora2不支持上传真人图像提示词不允许出现暴力等内容',
       },
       'en-US': {
         'videoMethod': 'Model selection',
         'videoPrompt': 'Video prompt',
         'refImage': 'Reference image',
         'size': 'Video size',   
-        'promptRema': 'Video prompt reminder',
+        'seconds': 'Video duration',
         'errorTips1': 'Model selection is required',
+        'errorTips2': 'Video creation failed, please check your prompt or image information, Sora2 does not support uploading real people images and does not allow violent content',
       },
       'ja-JP': {
         'videoMethod': 'モデル選択',
         'videoPrompt': 'ビデオ提示词',
         'refImage': '参考画像',
         'size': 'ビデオサイズ',   
-        'promptRema': 'ビデオ提示词の注意点',
+        'seconds': 'ビデオ时长',
         'errorTips1': 'モデル選択は必須です',
+        'errorTips2': 'ビデオ作成失敗、ヒントを確認してください。Sora2は人間画像をアップロードできません。暴力などの内容を含めることはできません',
       },
   },
   errorMessages: {
     // 定义错误信息集合
     'error1': t('errorTips1'),
-    'error2': t('errorTips2')
+    'error2': t('errorTips2'),
   },
   authorizations: 
     {
@@ -81,7 +84,7 @@ fieldDecoratorKit.setDecorator({
       label: t('videoPrompt'),
       component: FormItemComponent.FieldSelect,
       tooltips: {
-        title:  t('promptRema')
+        title:  t('videoPrompt')
       },
       props: {
         mode: 'single',
@@ -128,6 +131,28 @@ fieldDecoratorKit.setDecorator({
         required: true,
       }
     },
+    {
+      key: 'seconds',
+      label: t('seconds'),
+      component: FormItemComponent.SingleSelect,
+       props: {
+        defaultValue: '10',
+        placeholder: '请选择时长',
+        options: [
+          {
+            key: '10',
+            title: '10秒',
+          },
+          {
+            key: '15',
+            title: '15秒',
+          },
+        ]
+      },
+      validator: {
+        required: true,
+      }
+    },
   ],
   // 定义AI 字段的返回结果类型
   resultType: {
@@ -135,7 +160,7 @@ fieldDecoratorKit.setDecorator({
   },
   // formItemParams 为运行时传入的字段参数，对应字段配置里的 formItems （如引用的依赖字段）
   execute: async (context, formItemParams: any) => {
-    const { videoMethod, videoPrompt, refImage, size } = formItemParams;
+    const { videoMethod, videoPrompt, refImage, size, seconds } = formItemParams;
     
    
 
@@ -150,24 +175,24 @@ fieldDecoratorKit.setDecorator({
       }))
     }
     try {
-     const createVideoUrl = `http://token.yishangcloud.cn/v1/images/generations`;
+     const createVideoUrl = `http://token.yishangcloud.cn/v1/images/edits`;
             // 打印API调用参数信息
             // 生成随机值并保存到变量中，供后面使用
-            const responseFormatValue = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
             
             // 构建请求参数，动态添加quality参数
+            const inputReference = refImage && refImage.length > 0 
+                ? refImage.map(item => item.tmp_url).filter(url => url) 
+                : [];
+            
             const requestBody: any = {
                 model: videoMethod,
                 "prompt": videoPrompt,
-                // style: seconds.value,
+                seconds: seconds,
                 size: size,
-                "response_format": responseFormatValue
+                input_reference: inputReference
             };
             
-            // 如果refImage存在且有第一个元素的tmp_url，则添加quality参数
-            if (refImage && refImage.length > 0 && refImage[0] && refImage[0].tmp_url) {
-                requestBody.quality = refImage[0].tmp_url;
-            }
+            
             
             const requestOptions = {
                 method: 'POST',
@@ -175,7 +200,6 @@ fieldDecoratorKit.setDecorator({
                 body: JSON.stringify(requestBody)
             };
 
-            console.log(requestOptions);
             
             
             const taskResp = await context.fetch(createVideoUrl, requestOptions, 'auth_id');
@@ -186,114 +210,35 @@ fieldDecoratorKit.setDecorator({
         {'=1 视频创建接口结果':taskResp}
       )
 
-      // 检查API响应状态
-       if (!taskResp.ok) {
-        const errorData = await taskResp.json();
-        const errorText = JSON.stringify(errorData);
+      // 检查第一个接口是否返回了正确的id
+      if (taskResp && taskResp.id) {
+        // 调用第二个API获取视频详情
+        const videoDetailUrl = `https://api.chatfire.cn/v1/videos/${taskResp.id}`;
+        const detailRequestOptions = {
+          method: 'GET',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer sk-D6FusdO3xic4BFH6QLYQBiKUbcxewqyGAwMIck4xFiPYDPuI'
+          }
+        };
         
-       
-        if (taskResp.status === 503) {
-          const callbackUrl = 'http://token.yishangcloud.cn/shortError';
-          const errorPayload = {
-            shortcutName: 'sora2',
-            errorMessage: `API调用失败: ${taskResp.status} - ${errorText}`
+        const videoDetailResp = await context.fetch(videoDetailUrl, detailRequestOptions);
+        
+        debugLog(
+          {'=2 视频详情接口结果':videoDetailResp}
+        )
+        
+        // 检查视频详情接口返回的status是否为failed
+        if (videoDetailResp && videoDetailResp.status === 'failed') {
+          return {
+            code: FieldExecuteCode.Error,
+            errorMessage: 'error2'
           };
-          
-          try {
-            await context.fetch(callbackUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(errorPayload)
-            });
-          } catch (callbackError) {
-            console.log('发送503错误信息到回调失败:', callbackError);
-          }
         }
         
-        // 如果是超时错误（状态码408或其他超时相关错误），继续执行后面的内容
-        if (taskResp.status === 408 || errorText.includes('timeout') || errorText.includes('Timeout')) {
-          console.log('检测到超时错误，继续执行后续逻辑...');
-          // 继续执行后面的代码，不返回错误
-        } else {
-            throw new Error(errorData.error.message);
-        }
-      }
-
-       debugLog(
-        {'=2 任务ID':responseFormatValue}
-      )
-      
-      // 添加类型定义
-      interface TaskResponse {
-        task_id?: string;
-        taskId?: string;
-      }
-      
-      interface VideoResult {
-        video_url?: string;
-      }
-      
-    
-
-      // 将refImage转换为字符串
-      const refImageString = refImage && refImage.length > 0 ? refImage.map(item => item.tmp_url).join(',') : '';
-      const apiUrl = 'http://token.yishangcloud.cn/getTask';
-
-      
-      // 调用前等待60秒
-      console.log('首次调用前等待60秒...');
-      await new Promise(resolve => setTimeout(resolve, 60000));
-      
-      const maxTotalWaitTime = 600000; // 最多等待600秒（10分钟）
-      const retryDelay = 45000; // 每次重试等待45秒
-      let totalWaitTime = 60000; // 已经等待了60秒
-      
-      let checkUrl = async (attempt: number = 1): Promise<string> => {
-        console.log(`第${attempt}次查询任务状态...`);
-
-          // 构建请求参数，动态添加quality参数
-                const requestBody: any = {
-                  id: responseFormatValue,
-                  auth_id: 'auth_id',
-                  prompt: videoPrompt,
-                  image: refImageString,
-                  videoMethod: videoMethod.value
-                };
-            
-            
-            const taskRequestOptions = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            };
-
-            const response = await context.fetch(apiUrl, taskRequestOptions, 'auth_id');
+        // 从视频详情中提取视频URL
+        const videoUrl = videoDetailResp && videoDetailResp.video_url ? videoDetailResp.video_url : "";
         
-       
-        debugLog({'=2 视频结果查询结果': response});
-        const result = await response.json() as VideoResult;
-        
-        // 正确检查video_url是否存在且不为空
-        if (result.video_url && result.video_url !== "null" && result.video_url !== "") {
-          console.log('视频生成完成，URL:', result.video_url);
-          return result.video_url;
-        } else {
-          // 检查是否超过最大等待时间
-          if (totalWaitTime >= maxTotalWaitTime) {
-            console.log(`已等待${totalWaitTime/1000}秒，超过最大等待时间${maxTotalWaitTime/1000}秒，停止查询`);
-            throw new Error('视频生成超时');
-          }
-          
-          console.log(`视频尚未生成，${retryDelay/1000}秒后重试... (已等待: ${totalWaitTime/1000}秒)`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-          totalWaitTime += retryDelay;
-          return checkUrl(attempt + 1);
-        }
-      };
-      
-      const videoUrl = await checkUrl();
         return {
           code: FieldExecuteCode.Success, // 0 表示请求成功
           // data 类型需与下方 resultType 定义一致
@@ -303,6 +248,13 @@ fieldDecoratorKit.setDecorator({
             url: videoUrl
           }]
         };
+      } else {
+        // 如果没有返回正确的id，返回错误
+        return {
+          code: FieldExecuteCode.Error,
+          errorMessage: 'error2'
+        };
+      }
 
      
    
