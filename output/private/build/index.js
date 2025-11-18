@@ -18,7 +18,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 var t = _dingtalkDocsCoolApp.fieldDecoratorKit.t;
 
 // 通过addDomainList添加请求接口的域名
-_dingtalkDocsCoolApp.fieldDecoratorKit.setDomainList(['api.exchangerate-api.com', 'token.yishangcloud.cn', 'pay.xunkecloud.cn']);
+_dingtalkDocsCoolApp.fieldDecoratorKit.setDomainList(['api.exchangerate-api.com', 'token.yishangcloud.cn', 'pay.xunkecloud.cn', 'open.feishu.cn']);
 _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
   name: 'AI 视频(Sora2)',
   // 定义AI 字段的i18n语言资源
@@ -168,7 +168,7 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
   // formItemParams 为运行时传入的字段参数，对应字段配置里的 formItems （如引用的依赖字段）
   execute: function () {
     var _execute = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee(context, formItemParams) {
-      var videoMethod, videoPrompt, refImage, size, seconds, debugLog, createVideoUrl, inputReference, requestBody, requestOptions, taskResp, videoDetailUrl, detailRequestOptions, videoDetailResp, videoUrl, _t;
+      var videoMethod, videoPrompt, refImage, size, seconds, debugLog, createVideoUrl, requestBody, requestOptions, createTask, taskResp, videoDetailUrl, detailRequestOptions, pollingInterval, maxPollingTime, startTime, videoDetailResp, pollingComplete, getTaskDetail, videoUrl, _t;
       return _regenerator().w(function (_context) {
         while (1) switch (_context.p = _context.n) {
           case 0:
@@ -181,21 +181,16 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
             videoMethod = formItemParams.videoMethod, videoPrompt = formItemParams.videoPrompt, refImage = formItemParams.refImage, size = formItemParams.size, seconds = formItemParams.seconds;
             /** 为方便查看日志，使用此方法替代console.log */
             _context.p = 1;
-            createVideoUrl = "http://token.yishangcloud.cn/v1/images/edits"; // 打印API调用参数信息
-            // 生成随机值并保存到变量中，供后面使用
-            // 构建请求参数，动态添加quality参数
-            inputReference = refImage && refImage.length > 0 ? refImage.map(function (item) {
-              return item.tmp_url;
-            }).filter(function (url) {
-              return url;
-            }) : [];
+            createVideoUrl = "http://token.yishangcloud.cn/v1/videos"; // 构建请求参数，动态添加quality参数
             requestBody = {
               model: videoMethod,
               "prompt": videoPrompt,
               seconds: seconds,
-              size: size,
-              input_reference: inputReference
-            };
+              size: size
+            }; // 如果refImage存在且有第一个元素的tmp_url，则添加quality参数
+            if (refImage && refImage.length > 0 && refImage[0] && refImage[0].tmp_url) {
+              requestBody.input_reference = [refImage[0].tmp_url];
+            }
             requestOptions = {
               method: 'POST',
               headers: {
@@ -203,46 +198,80 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
               },
               body: JSON.stringify(requestBody)
             };
+            console.log(requestOptions);
             _context.n = 2;
             return context.fetch(createVideoUrl, requestOptions, 'auth_id');
           case 2:
+            createTask = _context.v;
+            _context.n = 3;
+            return createTask.json();
+          case 3:
             taskResp = _context.v;
-            debugLog({
-              '=1 视频创建接口结果': taskResp
-            });
-
-            // 检查第一个接口是否返回了正确的id
             if (!(taskResp && taskResp.id)) {
-              _context.n = 5;
+              _context.n = 12;
               break;
             }
-            // 调用第二个API获取视频详情
-            videoDetailUrl = "https://api.chatfire.cn/v1/videos/".concat(taskResp.id);
+            // 调用第二个API获取视频详情 - 实现轮询逻辑
+            videoDetailUrl = "http://token.yishangcloud.cn/v1/videos/".concat(taskResp.id);
             detailRequestOptions = {
               method: 'GET',
               headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer sk-D6FusdO3xic4BFH6QLYQBiKUbcxewqyGAwMIck4xFiPYDPuI'
+                'Content-Type': 'application/json'
               }
-            };
-            _context.n = 3;
-            return context.fetch(videoDetailUrl, detailRequestOptions);
-          case 3:
+            }; // 轮询获取视频状态
+            pollingInterval = 5000; // 5秒间隔
+            maxPollingTime = 900000; // 900秒最大等待时间
+            startTime = Date.now();
+            pollingComplete = false;
+          case 4:
+            if (!(!pollingComplete && Date.now() - startTime < maxPollingTime)) {
+              _context.n = 10;
+              break;
+            }
+            _context.n = 5;
+            return context.fetch(videoDetailUrl, detailRequestOptions, 'auth_id');
+          case 5:
+            getTaskDetail = _context.v;
+            _context.n = 6;
+            return getTaskDetail.json();
+          case 6:
             videoDetailResp = _context.v;
-            debugLog({
-              '=2 视频详情接口结果': videoDetailResp
-            });
-
-            // 检查视频详情接口返回的status是否为failed
             if (!(videoDetailResp && videoDetailResp.status === 'failed')) {
-              _context.n = 4;
+              _context.n = 7;
               break;
             }
             return _context.a(2, {
               code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
               errorMessage: 'error2'
             });
-          case 4:
+          case 7:
+            if (!(videoDetailResp && videoDetailResp.status === 'completed')) {
+              _context.n = 8;
+              break;
+            }
+            pollingComplete = true;
+            debugLog('视频生成完成');
+            _context.n = 9;
+            break;
+          case 8:
+            _context.n = 9;
+            return new Promise(function (resolve) {
+              return setTimeout(resolve, pollingInterval);
+            });
+          case 9:
+            _context.n = 4;
+            break;
+          case 10:
+            if (pollingComplete) {
+              _context.n = 11;
+              break;
+            }
+            debugLog('视频生成超时');
+            return _context.a(2, {
+              code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
+              errorMessage: '视频生成超时，请稍后重试'
+            });
+          case 11:
             // 从视频详情中提取视频URL
             videoUrl = videoDetailResp && videoDetailResp.video_url ? videoDetailResp.video_url : "";
             return _context.a(2, {
@@ -255,51 +284,48 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
                 url: videoUrl
               }]
             });
-          case 5:
-            return _context.a(2, {
-              code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
-              errorMessage: 'error2'
-            });
-          case 6:
-            _context.n = 11;
+          case 12:
+            throw new Error(taskResp.error.message);
+          case 13:
+            _context.n = 18;
             break;
-          case 7:
-            _context.p = 7;
+          case 14:
+            _context.p = 14;
             _t = _context.v;
             console.log('====error', String(_t));
             if (!String(_t).includes('无可用渠道')) {
-              _context.n = 8;
+              _context.n = 15;
               break;
             }
             return _context.a(2, {
               code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
               errorMessage: 'error1'
             });
-          case 8:
+          case 15:
             if (!(String(_t).includes('令牌额度已用尽') || String(_t).includes('quota'))) {
-              _context.n = 9;
+              _context.n = 16;
               break;
             }
             return _context.a(2, {
               code: _dingtalkDocsCoolApp.FieldExecuteCode.QuotaExhausted
             });
-          case 9:
+          case 16:
             if (!String(_t).includes('无效的令牌')) {
-              _context.n = 10;
+              _context.n = 17;
               break;
             }
             return _context.a(2, {
               code: _dingtalkDocsCoolApp.FieldExecuteCode.ConfigError
             });
-          case 10:
+          case 17:
             return _context.a(2, {
               code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
               errorMessage: 'error1'
             });
-          case 11:
+          case 18:
             return _context.a(2);
         }
-      }, _callee, null, [[1, 7]]);
+      }, _callee, null, [[1, 14]]);
     }));
     function execute(_x, _x2) {
       return _execute.apply(this, arguments);

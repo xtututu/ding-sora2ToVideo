@@ -2,7 +2,7 @@ import { FieldType, fieldDecoratorKit, FormItemComponent, FieldExecuteCode, Auth
 const { t } = fieldDecoratorKit;
 
 // 通过addDomainList添加请求接口的域名
-fieldDecoratorKit.setDomainList(['api.exchangerate-api.com','token.yishangcloud.cn','pay.xunkecloud.cn']);
+fieldDecoratorKit.setDomainList(['api.exchangerate-api.com','token.yishangcloud.cn','pay.xunkecloud.cn','open.feishu.cn']);
 
 fieldDecoratorKit.setDecorator({
   name: 'AI 视频(Sora2)',
@@ -175,24 +175,22 @@ fieldDecoratorKit.setDecorator({
       }))
     }
     try {
-     const createVideoUrl = `http://token.yishangcloud.cn/v1/images/edits`;
-            // 打印API调用参数信息
-            // 生成随机值并保存到变量中，供后面使用
-            
+     const createVideoUrl = `http://token.yishangcloud.cn/v1/videos`;
             // 构建请求参数，动态添加quality参数
-            const inputReference = refImage && refImage.length > 0 
-                ? refImage.map(item => item.tmp_url).filter(url => url) 
-                : [];
-            
             const requestBody: any = {
                 model: videoMethod,
                 "prompt": videoPrompt,
                 seconds: seconds,
                 size: size,
-                input_reference: inputReference
             };
+
             
             
+            
+            // 如果refImage存在且有第一个元素的tmp_url，则添加quality参数
+            if (refImage && refImage.length > 0 && refImage[0] && refImage[0].tmp_url) {
+                requestBody.input_reference = [refImage[0].tmp_url];
+            }
             
             const requestOptions = {
                 method: 'POST',
@@ -200,41 +198,68 @@ fieldDecoratorKit.setDecorator({
                 body: JSON.stringify(requestBody)
             };
 
+            console.log(requestOptions);
             
             
-            const taskResp = await context.fetch(createVideoUrl, requestOptions, 'auth_id');
-
+            const createTask = await context.fetch(createVideoUrl, requestOptions, 'auth_id');
+            const taskResp = await createTask.json();
+           
     
            
-      debugLog(
-        {'=1 视频创建接口结果':taskResp}
-      )
+     
+
 
       // 检查第一个接口是否返回了正确的id
       if (taskResp && taskResp.id) {
-        // 调用第二个API获取视频详情
-        const videoDetailUrl = `https://api.chatfire.cn/v1/videos/${taskResp.id}`;
+        // 调用第二个API获取视频详情 - 实现轮询逻辑
+        const videoDetailUrl = `http://token.yishangcloud.cn/v1/videos/${taskResp.id}`;
         const detailRequestOptions = {
           method: 'GET',
           headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer sk-D6FusdO3xic4BFH6QLYQBiKUbcxewqyGAwMIck4xFiPYDPuI'
+            'Content-Type': 'application/json'
           }
         };
         
-        const videoDetailResp = await context.fetch(videoDetailUrl, detailRequestOptions);
+        // 轮询获取视频状态
+        const pollingInterval = 5000; // 5秒间隔
+        const maxPollingTime = 900000; // 900秒最大等待时间
+        const startTime = Date.now();
         
-        debugLog(
-          {'=2 视频详情接口结果':videoDetailResp}
-        )
+        let videoDetailResp;
+        let pollingComplete = false;
         
-        // 检查视频详情接口返回的status是否为failed
-        if (videoDetailResp && videoDetailResp.status === 'failed') {
+        while (!pollingComplete && (Date.now() - startTime) < maxPollingTime) {
+          const getTaskDetail = await context.fetch(videoDetailUrl, detailRequestOptions, 'auth_id');
+          videoDetailResp = await getTaskDetail.json();
+          
+          
+          // 检查状态是否为failed或completed
+          if (videoDetailResp && videoDetailResp.status === 'failed') {
+            return {
+              code: FieldExecuteCode.Error,
+              errorMessage: 'error2'
+            };
+          } else if (videoDetailResp && videoDetailResp.status === 'completed') {
+            pollingComplete = true;
+            debugLog('视频生成完成');
+          } else {
+            // 未完成，等待5秒后继续轮询
+            await new Promise(resolve => setTimeout(resolve, pollingInterval));
+          }
+        }
+        
+        // 检查是否超时
+        if (!pollingComplete) {
+          debugLog('视频生成超时');
           return {
             code: FieldExecuteCode.Error,
-            errorMessage: 'error2'
+            errorMessage: '视频生成超时，请稍后重试'
           };
         }
+
+      
+        
+        
         
         // 从视频详情中提取视频URL
         const videoUrl = videoDetailResp && videoDetailResp.video_url ? videoDetailResp.video_url : "";
@@ -249,11 +274,7 @@ fieldDecoratorKit.setDecorator({
           }]
         };
       } else {
-        // 如果没有返回正确的id，返回错误
-        return {
-          code: FieldExecuteCode.Error,
-          errorMessage: 'error2'
-        };
+         throw new Error(taskResp.error.message);
       }
 
      
