@@ -30,7 +30,8 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
       'size': '视频尺寸',
       'seconds': '视频时长',
       'errorTips1': 'AI 字段异常，维护中可联系开发者咨询',
-      'errorTips2': '视频创建失败，请检查您的提示词或图片信息，Sora2不支持上传真人图像提示词不允许出现暴力等内容'
+      'errorTips2': '视频创建失败，请检查您的提示词或图片信息，Sora2不支持上传真人图像提示词不允许出现暴力等内容',
+      'errorTips3': '令牌配置有误，请检查您的令牌是否正确，如仍有疑问可加入钉钉群咨询'
     },
     'en-US': {
       'videoMethod': 'Model selection',
@@ -54,7 +55,8 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
   errorMessages: {
     // 定义错误信息集合
     'error1': t('errorTips1'),
-    'error2': t('errorTips2')
+    'error2': t('errorTips2'),
+    'error3': t('errorTips3')
   },
   authorizations: {
     id: 'auth_id',
@@ -73,8 +75,8 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
     // 提示，引导用户添加授权
     icon: {
       // 当前平台的图标
-      light: '',
-      dark: ''
+      light: 'https://token.yishangcloud.cn/logo1.png',
+      dark: 'https://token.yishangcloud.cn/logo1.png'
     }
   },
   // 定义AI 字段的入参
@@ -168,27 +170,30 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
   // formItemParams 为运行时传入的字段参数，对应字段配置里的 formItems （如引用的依赖字段）
   execute: function () {
     var _execute = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee(context, formItemParams) {
-      var videoMethod, videoPrompt, refImage, size, seconds, debugLog, createVideoUrl, requestBody, requestOptions, createTask, taskResp, videoDetailUrl, detailRequestOptions, pollingInterval, maxPollingTime, startTime, videoDetailResp, pollingComplete, getTaskDetail, videoUrl, _t;
+      var videoMethod, videoPrompt, refImage, size, seconds, debugLog, API_BASE_URL, POLLING_INTERVAL, MAX_POLLING_TIME, _refImage$, _taskResp$error, _videoDetailResp3, requestBody, requestOptions, createTask, taskResp, _taskResp$error2, videoDetailUrl, detailRequestOptions, startTime, videoDetailResp, pollingComplete, _videoDetailResp, _videoDetailResp2, getTaskDetail, videoUrl, errorMsg, _t;
       return _regenerator().w(function (_context) {
         while (1) switch (_context.p = _context.n) {
           case 0:
-            debugLog = function _debugLog(arg) {
+            videoMethod = formItemParams.videoMethod, videoPrompt = formItemParams.videoPrompt, refImage = formItemParams.refImage, size = formItemParams.size, seconds = formItemParams.seconds;
+            /** 为方便查看日志，使用此方法替代console.log */
+            debugLog = function debugLog(arg) {
               // @ts-ignore
               console.log(JSON.stringify(_objectSpread({
                 timestamp: new Date().toISOString()
               }, arg)));
-            };
-            videoMethod = formItemParams.videoMethod, videoPrompt = formItemParams.videoPrompt, refImage = formItemParams.refImage, size = formItemParams.size, seconds = formItemParams.seconds;
-            /** 为方便查看日志，使用此方法替代console.log */
+            }; // 定义常量
+            API_BASE_URL = 'http://token.yishangcloud.cn/v1/videos';
+            POLLING_INTERVAL = 5000; // 5秒间隔
+            MAX_POLLING_TIME = 900000; // 900秒最大等待时间
             _context.p = 1;
-            createVideoUrl = "http://token.yishangcloud.cn/v1/videos"; // 构建请求参数，动态添加quality参数
+            // 构建请求参数
             requestBody = {
               model: videoMethod,
-              "prompt": videoPrompt,
+              prompt: videoPrompt,
               seconds: seconds,
               size: size
-            }; // 如果refImage存在且有第一个元素的tmp_url，则添加quality参数
-            if (refImage && refImage.length > 0 && refImage[0] && refImage[0].tmp_url) {
+            }; // 如果refImage存在且有第一个元素的tmp_url，则添加input_reference参数
+            if (refImage !== null && refImage !== void 0 && (_refImage$ = refImage[0]) !== null && _refImage$ !== void 0 && _refImage$.tmp_url) {
               requestBody.input_reference = [refImage[0].tmp_url];
             }
             requestOptions = {
@@ -198,102 +203,122 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
               },
               body: JSON.stringify(requestBody)
             };
-            console.log(requestOptions);
+            debugLog({
+              requestOptions: requestOptions
+            });
+
+            // 创建视频任务
             _context.n = 2;
-            return context.fetch(createVideoUrl, requestOptions, 'auth_id');
+            return context.fetch(API_BASE_URL, requestOptions, 'auth_id');
           case 2:
             createTask = _context.v;
             _context.n = 3;
             return createTask.json();
           case 3:
             taskResp = _context.v;
-            if (!(taskResp && taskResp.id)) {
-              _context.n = 12;
+            debugLog({
+              taskResp: taskResp
+            });
+
+            // 检查令牌有效性
+            if (!((_taskResp$error = taskResp.error) !== null && _taskResp$error !== void 0 && (_taskResp$error = _taskResp$error.message) !== null && _taskResp$error !== void 0 && _taskResp$error.includes('无效的令牌'))) {
+              _context.n = 4;
               break;
             }
-            // 调用第二个API获取视频详情 - 实现轮询逻辑
-            videoDetailUrl = "http://token.yishangcloud.cn/v1/videos/".concat(taskResp.id);
+            return _context.a(2, {
+              code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
+              errorMessage: 'error3'
+            });
+          case 4:
+            if (taskResp !== null && taskResp !== void 0 && taskResp.id) {
+              _context.n = 5;
+              break;
+            }
+            throw new Error(((_taskResp$error2 = taskResp.error) === null || _taskResp$error2 === void 0 ? void 0 : _taskResp$error2.message) || '创建视频任务失败');
+          case 5:
+            // 轮询获取视频状态
+            videoDetailUrl = "".concat(API_BASE_URL, "/").concat(taskResp.id);
             detailRequestOptions = {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json'
               }
-            }; // 轮询获取视频状态
-            pollingInterval = 5000; // 5秒间隔
-            maxPollingTime = 900000; // 900秒最大等待时间
+            };
             startTime = Date.now();
             pollingComplete = false;
-          case 4:
-            if (!(!pollingComplete && Date.now() - startTime < maxPollingTime)) {
-              _context.n = 10;
+          case 6:
+            if (!(!pollingComplete && Date.now() - startTime < MAX_POLLING_TIME)) {
+              _context.n = 12;
               break;
             }
-            _context.n = 5;
+            _context.n = 7;
             return context.fetch(videoDetailUrl, detailRequestOptions, 'auth_id');
-          case 5:
+          case 7:
             getTaskDetail = _context.v;
-            _context.n = 6;
+            _context.n = 8;
             return getTaskDetail.json();
-          case 6:
+          case 8:
             videoDetailResp = _context.v;
-            if (!(videoDetailResp && videoDetailResp.status === 'failed')) {
-              _context.n = 7;
+            if (!(((_videoDetailResp = videoDetailResp) === null || _videoDetailResp === void 0 ? void 0 : _videoDetailResp.status) === 'failed')) {
+              _context.n = 9;
               break;
             }
             return _context.a(2, {
               code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
               errorMessage: 'error2'
             });
-          case 7:
-            if (!(videoDetailResp && videoDetailResp.status === 'completed')) {
-              _context.n = 8;
+          case 9:
+            if (!(((_videoDetailResp2 = videoDetailResp) === null || _videoDetailResp2 === void 0 ? void 0 : _videoDetailResp2.status) === 'completed')) {
+              _context.n = 10;
               break;
             }
             pollingComplete = true;
-            debugLog('视频生成完成');
-            _context.n = 9;
-            break;
-          case 8:
-            _context.n = 9;
-            return new Promise(function (resolve) {
-              return setTimeout(resolve, pollingInterval);
+            debugLog({
+              message: '视频生成完成'
             });
-          case 9:
-            _context.n = 4;
+            _context.n = 11;
             break;
           case 10:
-            if (pollingComplete) {
-              _context.n = 11;
-              break;
-            }
-            debugLog('视频生成超时');
-            return _context.a(2, {
-              code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
-              errorMessage: '视频生成超时，请稍后重试'
+            _context.n = 11;
+            return new Promise(function (resolve) {
+              return setTimeout(resolve, POLLING_INTERVAL);
             });
           case 11:
+            _context.n = 6;
+            break;
+          case 12:
+            if (pollingComplete) {
+              _context.n = 13;
+              break;
+            }
+            debugLog({
+              message: '视频生成超时'
+            });
+            return _context.a(2, {
+              code: _dingtalkDocsCoolApp.FieldExecuteCode.ConfigError,
+              errorMessage: '视频生成超时，请稍后重试'
+            });
+          case 13:
             // 从视频详情中提取视频URL
-            videoUrl = videoDetailResp && videoDetailResp.video_url ? videoDetailResp.video_url : "";
+            videoUrl = ((_videoDetailResp3 = videoDetailResp) === null || _videoDetailResp3 === void 0 ? void 0 : _videoDetailResp3.video_url) || '';
             return _context.a(2, {
               code: _dingtalkDocsCoolApp.FieldExecuteCode.Success,
               // 0 表示请求成功
               // data 类型需与下方 resultType 定义一致
               data: [{
-                fileName: videoPrompt + '.mp4',
+                fileName: "".concat(videoPrompt, ".mp4"),
                 type: 'video',
                 url: videoUrl
               }]
             });
-          case 12:
-            throw new Error(taskResp.error.message);
-          case 13:
-            _context.n = 18;
-            break;
           case 14:
             _context.p = 14;
             _t = _context.v;
-            console.log('====error', String(_t));
-            if (!String(_t).includes('无可用渠道')) {
+            debugLog({
+              error: String(_t)
+            });
+            errorMsg = String(_t);
+            if (!errorMsg.includes('无可用渠道')) {
               _context.n = 15;
               break;
             }
@@ -302,7 +327,7 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
               errorMessage: 'error1'
             });
           case 15:
-            if (!(String(_t).includes('令牌额度已用尽') || String(_t).includes('quota'))) {
+            if (!(errorMsg.includes('令牌额度已用尽') || errorMsg.includes('quota'))) {
               _context.n = 16;
               break;
             }
@@ -310,7 +335,7 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
               code: _dingtalkDocsCoolApp.FieldExecuteCode.QuotaExhausted
             });
           case 16:
-            if (!String(_t).includes('无效的令牌')) {
+            if (!errorMsg.includes('无效的令牌')) {
               _context.n = 17;
               break;
             }
@@ -322,8 +347,6 @@ _dingtalkDocsCoolApp.fieldDecoratorKit.setDecorator({
               code: _dingtalkDocsCoolApp.FieldExecuteCode.Error,
               errorMessage: 'error1'
             });
-          case 18:
-            return _context.a(2);
         }
       }, _callee, null, [[1, 14]]);
     }));

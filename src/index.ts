@@ -16,6 +16,7 @@ fieldDecoratorKit.setDecorator({
         'seconds': '视频时长',
         'errorTips1': 'AI 字段异常，维护中可联系开发者咨询',
         'errorTips2': '视频创建失败，请检查您的提示词或图片信息，Sora2不支持上传真人图像提示词不允许出现暴力等内容',
+        'errorTips3': '令牌配置有误，请检查您的令牌是否正确，如仍有疑问可加入钉钉群咨询',
       },
       'en-US': {
         'videoMethod': 'Model selection',
@@ -40,6 +41,7 @@ fieldDecoratorKit.setDecorator({
     // 定义错误信息集合
     'error1': t('errorTips1'),
     'error2': t('errorTips2'),
+    'error3': t('errorTips3'),
   },
   authorizations: 
     {
@@ -161,151 +163,142 @@ fieldDecoratorKit.setDecorator({
   // formItemParams 为运行时传入的字段参数，对应字段配置里的 formItems （如引用的依赖字段）
   execute: async (context, formItemParams: any) => {
     const { videoMethod, videoPrompt, refImage, size, seconds } = formItemParams;
-    
-   
 
-    
-
-     /** 为方便查看日志，使用此方法替代console.log */
-    function debugLog(arg: any) {
+    /** 为方便查看日志，使用此方法替代console.log */
+    const debugLog = (arg: any) => {
       // @ts-ignore
       console.log(JSON.stringify({
         timestamp: new Date().toISOString(),
         ...arg
-      }))
-    }
+      }));
+    };
+
+    // 定义常量
+    const API_BASE_URL = 'http://token.yishangcloud.cn/v1/videos';
+    const POLLING_INTERVAL = 5000; // 5秒间隔
+    const MAX_POLLING_TIME = 900000; // 900秒最大等待时间
+
     try {
-     const createVideoUrl = `http://token.yishangcloud.cn/v1/videos`;
-            // 构建请求参数，动态添加quality参数
-            const requestBody: any = {
-                model: videoMethod,
-                "prompt": videoPrompt,
-                seconds: seconds,
-                size: size,
-            };
+      // 构建请求参数
+      const requestBody: any = {
+        model: videoMethod,
+        prompt: videoPrompt,
+        seconds,
+        size,
+      };
 
-            
-            
-            
-            // 如果refImage存在且有第一个元素的tmp_url，则添加quality参数
-            if (refImage && refImage.length > 0 && refImage[0] && refImage[0].tmp_url) {
-                requestBody.input_reference = [refImage[0].tmp_url];
-            }
-            
-            const requestOptions = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            };
-
-            console.log(requestOptions);
-            
-            
-            const createTask = await context.fetch(createVideoUrl, requestOptions, 'auth_id');
-            const taskResp = await createTask.json();
-           
-    
-           
-     
-
-
-      // 检查第一个接口是否返回了正确的id
-      if (taskResp && taskResp.id) {
-        // 调用第二个API获取视频详情 - 实现轮询逻辑
-        const videoDetailUrl = `http://token.yishangcloud.cn/v1/videos/${taskResp.id}`;
-        const detailRequestOptions = {
-          method: 'GET',
-          headers: { 
-            'Content-Type': 'application/json'
-          }
-        };
-        
-        // 轮询获取视频状态
-        const pollingInterval = 5000; // 5秒间隔
-        const maxPollingTime = 900000; // 900秒最大等待时间
-        const startTime = Date.now();
-        
-        let videoDetailResp;
-        let pollingComplete = false;
-        
-        while (!pollingComplete && (Date.now() - startTime) < maxPollingTime) {
-          const getTaskDetail = await context.fetch(videoDetailUrl, detailRequestOptions, 'auth_id');
-          videoDetailResp = await getTaskDetail.json();
-          
-          
-          // 检查状态是否为failed或completed
-          if (videoDetailResp && videoDetailResp.status === 'failed') {
-            return {
-              code: FieldExecuteCode.Error,
-              errorMessage: 'error2'
-            };
-          } else if (videoDetailResp && videoDetailResp.status === 'completed') {
-            pollingComplete = true;
-            debugLog('视频生成完成');
-          } else {
-            // 未完成，等待5秒后继续轮询
-            await new Promise(resolve => setTimeout(resolve, pollingInterval));
-          }
-        }
-        
-        // 检查是否超时
-        if (!pollingComplete) {
-          debugLog('视频生成超时');
-          return {
-            code: FieldExecuteCode.Error,
-            errorMessage: '视频生成超时，请稍后重试'
-          };
-        }
-
-      
-        
-        
-        
-        // 从视频详情中提取视频URL
-        const videoUrl = videoDetailResp && videoDetailResp.video_url ? videoDetailResp.video_url : "";
-        
-        return {
-          code: FieldExecuteCode.Success, // 0 表示请求成功
-          // data 类型需与下方 resultType 定义一致
-          data: [{
-            fileName: videoPrompt + '.mp4',
-            type: 'video',
-            url: videoUrl
-          }]
-        };
-      } else {
-         throw new Error(taskResp.error.message);
+      // 如果refImage存在且有第一个元素的tmp_url，则添加input_reference参数
+      if (refImage?.[0]?.tmp_url) {
+        requestBody.input_reference = [refImage[0].tmp_url];
       }
 
-     
-   
-    } catch (e) {
-      console.log('====error', String(e));
-      
-       if (String(e).includes('无可用渠道')) { 
+      const requestOptions = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      };
+
+      debugLog({ requestOptions });
+
+      // 创建视频任务
+      const createTask = await context.fetch(API_BASE_URL, requestOptions, 'auth_id');
+      const taskResp = await createTask.json();
+
+      debugLog({ taskResp });
+
+      // 检查令牌有效性
+      if (taskResp.error?.message?.includes('无效的令牌')) {
         return {
-          code: FieldExecuteCode.Error, 
-          errorMessage: 'error1',
+          code: FieldExecuteCode.Error,
+          errorMessage: 'error3'
+        };
+      }
+
+      // 检查是否返回了任务id
+      if (!taskResp?.id) {
+        throw new Error(taskResp.error?.message || '创建视频任务失败');
+      }
+
+      // 轮询获取视频状态
+      const videoDetailUrl = `${API_BASE_URL}/${taskResp.id}`;
+      const detailRequestOptions = {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      };
+
+      const startTime = Date.now();
+      let videoDetailResp: any;
+      let pollingComplete = false;
+
+      while (!pollingComplete && (Date.now() - startTime) < MAX_POLLING_TIME) {
+        const getTaskDetail = await context.fetch(videoDetailUrl, detailRequestOptions, 'auth_id');
+        videoDetailResp = await getTaskDetail.json();
+
+        // 检查状态
+        if (videoDetailResp?.status === 'failed') {
+          return {
+            code: FieldExecuteCode.Error,
+            errorMessage: 'error2'
+          };
+        } else if (videoDetailResp?.status === 'completed') {
+          pollingComplete = true;
+          debugLog({ message: '视频生成完成' });
+        } else {
+          // 未完成，等待后继续轮询
+          await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+        }
+      }
+
+      // 检查是否超时
+      if (!pollingComplete) {
+        debugLog({ message: '视频生成超时' });
+        return {
+          code: FieldExecuteCode.ConfigError,
+          errorMessage: '视频生成超时，请稍后重试'
+        };
+      }
+
+      // 从视频详情中提取视频URL
+      const videoUrl = videoDetailResp?.video_url || '';
+
+      return {
+        code: FieldExecuteCode.Success, // 0 表示请求成功
+        // data 类型需与下方 resultType 定义一致
+        data: [{
+          fileName: `${videoPrompt}.mp4`,
+          type: 'video',
+          url: videoUrl
+        }]
+      };
+
+    } catch (e) {
+      debugLog({ error: String(e) });
+
+      const errorMsg = String(e);
+      if (errorMsg.includes('无可用渠道')) {
+        return {
+          code: FieldExecuteCode.Error,
+          errorMessage: 'error1'
         };
       }
 
       // 检查错误消息中是否包含余额耗尽的信息
-      if (String(e).includes('令牌额度已用尽')||String(e).includes('quota')) {
-        
+      if (errorMsg.includes('令牌额度已用尽') || errorMsg.includes('quota')) {
         return {
-          code: FieldExecuteCode.QuotaExhausted, 
+          code: FieldExecuteCode.QuotaExhausted
         };
       }
-       if (String(e).includes('无效的令牌')) {
-        
+
+      if (errorMsg.includes('无效的令牌')) {
         return {
-          code: FieldExecuteCode.ConfigError, 
+          code: FieldExecuteCode.ConfigError
         };
       }
-       return {
-          code: FieldExecuteCode.Error, 
-          errorMessage: 'error1',
-        };
+
+      return {
+        code: FieldExecuteCode.Error,
+        errorMessage: 'error1'
+      };
     }
   },
 });
