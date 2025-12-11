@@ -26,6 +26,7 @@ fieldDecoratorKit.setDecorator({
         'seconds': 'Video duration',
         'errorTips1': 'Model selection is required',
         'errorTips2': 'Video creation failed, please check your prompt or image information, Sora2 does not support uploading real people images and does not allow violent content',
+        'errorTips3': 'The token configuration is wrong. Please check whether your token is correct. If you still have any questions, you can join the Dingding group for consultation.',
       },
       'ja-JP': {
         'videoMethod': 'モデル選択',
@@ -35,6 +36,7 @@ fieldDecoratorKit.setDecorator({
         'seconds': 'ビデオ时长',
         'errorTips1': 'モデル選択は必須です',
         'errorTips2': 'ビデオ作成失敗、ヒントを確認してください。Sora2は人間画像をアップロードできません。暴力などの内容を含めることはできません',
+        'errorTips3': 'トークンの設定が間違っています。トークンが正しいかどうかを確認してください。まだ疑問がある場合は、DingDingグループに参加して相談してください。',
       },
   },
   errorMessages: {
