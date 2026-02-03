@@ -86,13 +86,13 @@ fieldDecoratorKit.setDecorator({
     {
       key: 'videoPrompt',
       label: t('videoPrompt'),
-      component: FormItemComponent.FieldSelect,
+      component: FormItemComponent.Textarea,
       tooltips: {
         title:  t('videoPrompt')
       },
       props: {
-        mode: 'single',
-        supportTypes: [FieldType.Text, FieldType.Number,FieldType.SingleSelect,FieldType.MultiSelect],
+       placeholder: '请输入视频编辑提示词',
+        enableFieldReference: true,
       },
       validator: {
         required: true,
